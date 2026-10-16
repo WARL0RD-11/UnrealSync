@@ -1,0 +1,20 @@
+#!/bin/sh
+# Managed by UnrealSync — invoked after successful merges and fast-forward pulls.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+SCRIPT="$ROOT/.unrealsync/UnrealSync.ps1"
+[ -f "$SCRIPT" ] || exit 0
+OLD="$(git rev-parse ORIG_HEAD 2>/dev/null)" || OLD=""
+NEW="$(git rev-parse HEAD 2>/dev/null)" || exit 0
+if [ -n "$OLD" ] && [ "$OLD" = "$NEW" ]; then exit 0; fi
+if [ -z "$OLD" ]; then
+  echo '[UnrealSync] Could not find pre-merge revision; run a manual -Mode Full if needed.' >&2
+  exit 0
+fi
+printf '[UnrealSync] Merge detected, checking for relevant Unreal changes...\n'
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$SCRIPT" -Mode Auto -OldRevision "$OLD" -NewRevision "$NEW"
+RESULT=$?
+if [ "$RESULT" -ne 0 ]; then
+  echo '[UnrealSync] Build failed or was deferred. Check the .git/unrealsync status and log.' >&2
+fi
+# The Git merge has already completed. Do not report a failed merge for a failed build.
+exit 0

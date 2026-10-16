@@ -1,0 +1,35 @@
+name: Tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  git-hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Git hooks with mocked PowerShell
+        run: python3 -m unittest discover -s tests -v
+      - name: Validate hook syntax
+        run: |
+          sh -n hooks/post-merge
+          sh -n hooks/post-rewrite
+
+  powershell-syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse all PowerShell files
+        shell: powershell
+        run: |
+          $files = @(Get-ChildItem -Path . -Filter '*.ps1' -Recurse -File)
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$($file.FullName): $_" }
+              exit 1
+            }
+          }
+          Write-Host "PowerShell syntax validated for $($files.Count) scripts."
